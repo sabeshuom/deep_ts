@@ -3,16 +3,16 @@
 virtualenv -p python3.7 deep_ts
 source deep_ts/bin/activate
 ```
-# install required python packages
+# Install required python packages
 ```
 pip install -r requirements.txt
 ```
-# training 
-set the model config and paths in conf.py and run train.py
+# Training 
+Set the model config and paths in conf.py and run train.py
 ```
 python train.py
 ```
-# directories
+# Directory Structure
 ./data - contains data for Train.csv, Val.csv, Test.csv 
 ./models - all the models .h5
 ./logs - all the tensorboard event data and history
