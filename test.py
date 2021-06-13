@@ -24,7 +24,6 @@ def load_and_preprocess_data():
     test_x, test_y = split_series(scaled_test_df, conf.n_past, conf.n_ahead)
     return train_x, train_y, val_x, val_y, test_x, test_y, scalers
     
-
 def main():
     # set a new log sub dir for the current training
     curr_log_dir = os.path.join(conf.log_dir, time.strftime("%Y%m%d-%H%M%S"))

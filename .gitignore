@@ -1,5 +1,5 @@
 __pycache__/
 .vscode/
-.pb
-.h5
+*.pb
+*.h5
 /logs

@@ -10,6 +10,20 @@ from datetime import datetime, timedelta
 # Directory managment 
 import os
 
+def convert_to_daily(data, date_list, df_columns):
+    date_list = [a[0] for a in date_list] # get the first future date we can 
+    data = data[:,0, :] # just get the first future value
+    df = pd.DataFrame(data, index=date_list, columns=df_columns)
+    df = df.groupby(df.index.strftime("%Y%m%d")).mean()
+    df.index = pd.to_datetime(df.index)
+    return df
+
+
+def compute_squared_error(gt_data_df, test_data_df):
+    return np.square(np.subtract(gt_data_df, test_data_df))
+    
+    
+
 def load_csv(csv_path):
     """
     Args:
@@ -59,10 +73,10 @@ def scale_data(df, scalers = {}):
             s_s = scaler.fit_transform(df[i].values.reshape(-1, 1))
         s_s = np.reshape(s_s, len(s_s))
         scaled_df[i] = s_s
-    return scaled_df.values, scalers
+    return scaled_df.values, scalers, scaled_df.index.values
     
 
-def split_series(series, n_past, n_ahead):
+def split_series(series, n_past, n_ahead, time_list=None):
     """
     Args:
         series: input df data values
@@ -72,18 +86,23 @@ def split_series(series, n_past, n_ahead):
         splitted slided time series past and ahead data
     """
     X, y = list(), list()
+    splitted_time_list = []
     for window_start in range(len(series)):
         past_end = window_start + n_past
         future_end = past_end + n_ahead
         if future_end > len(series):
             break
+        if time_list is not None:
+            splitted_time_list.append(time_list[past_end:future_end])
+            
+            
         # TODO need to check the time difference and skip the gap (data is not consecutive)
         # slicing the past and future parts of the window
         past, future = series[window_start:past_end, :], series[
             past_end:future_end, :]
         X.append(past)
         y.append(future)
-    return np.array(X), np.array(y)
+    return np.array(X), np.array(y), splitted_time_list
 
 
 def inverse_scaled_data(scaled_df, scalers):

@@ -6,21 +6,22 @@ from pandas.plotting import register_matplotlib_converters
 import tensorflow as tf
 from datetime import datetime, timedelta
 
+
 # Directory managment 
 import os
 import conf
 import pickle
-from utils import load_csv, scale_data, split_series, TSmodel, inverse_scaled_data
+from utils import load_csv, scale_data, split_series, TSmodel, inverse_scaled_data, convert_to_daily, compute_squared_error
 register_matplotlib_converters()
 
 def load_train_val_data():
     # load training and validation data
     train_df  = load_csv(conf.train_csv)
     val_df  = load_csv(conf.val_csv)
-    scaled_train_df, scalers = scale_data(train_df)
-    scaled_val_df, _ = scale_data(val_df, scalers)
-    train_x, train_y = split_series(scaled_train_df, conf.n_past, conf.n_ahead)
-    val_x, val_y = split_series(scaled_val_df, conf.n_past, conf.n_ahead)
+    scaled_train_df, scalers, _ = scale_data(train_df)
+    scaled_val_df, _, _ = scale_data(val_df, scalers)
+    train_x, train_y,_ = split_series(scaled_train_df, conf.n_past, conf.n_ahead)
+    val_x, val_y, _ = split_series(scaled_val_df, conf.n_past, conf.n_ahead)
     scalers["columns"] = train_df.columns
     with open(os.path.join(conf.model_dir, "scalers.pkl"), 'wb') as fp:
         pickle.dump(scalers, fp)
@@ -44,36 +45,44 @@ def train():
     
     history = ts_model.fit(train_x, train_y, epochs=conf.n_train_epochs, validation_data=(val_x, val_y), batch_size=conf.train_batchSize, verbose=2, callbacks=call_backs)
     # now saving the history data to plot some stats in future
-    np.save(os.path.join(curr_log_dir, "train_history.npy", history.history))
+    np.save(os.path.join(curr_log_dir, "train_history.npy"), history.history)
 
+   
 def evaluate():
     with open(os.path.join(conf.model_dir, "scalers.pkl"), 'rb') as fp:
         scalers = pickle.load(fp)
     model_path = os.path.join(conf.model_dir, "tsmodel.h5")
     ts_model = tf.keras.models.load_model(model_path)
     test_df  = load_csv(conf.test_csv)
-    scaled_test_df, _ = scale_data(test_df, scalers)
-    test_x, test_y = split_series(scaled_test_df, conf.n_past, conf.n_ahead)
+    scaled_test_df, _, time_list = scale_data(test_df, scalers)
+    test_x, test_y, test_time_list = split_series(scaled_test_df, conf.n_past, conf.n_ahead, time_list)
+    
+    # get the prediction
     pred_y = ts_model.predict(test_x)
-    # unscaled_test_y = inverse_scaled_data(test_y, scalers)
+    df_columns = test_df.columns
+    
+    # unscaling the data
+    unscaled_test_y = inverse_scaled_data(test_y, scalers)
     unscaled_pred_y = inverse_scaled_data(pred_y, scalers)
-    fc = test_df.tail(len(test_y)).copy()
-    fc.reset_index(inplace=True)
-    fc['forecast'] = unscaled_pred_y[:,1,6] # we just need the power demand column
-    # Ploting the forecasts
+    
+    # converting to daily df
+    daily_pred_df = convert_to_daily(unscaled_pred_y, test_time_list, df_columns)
+    daily_gt_df = convert_to_daily(unscaled_test_y, test_time_list, df_columns)
+    df_se = compute_squared_error(unscaled_pred_y, unscaled_test_y)
+    df_mse = convert_to_daily(df_se, test_time_list, df_columns) # mean squred error for daily
+    df_rmse = np.sqrt(df_mse) # root mean squred error
+    df_plt = df_rmse.plot( y='TOTALDEMAND', kind = 'line', use_index=True, alpha=0.8)
+    df_plt.figure.savefig('rmse.png')
+   
     plt.figure(figsize=(12, 8))
-    for dtype in ['TOTALDEMAND', 'forecast']:
-        plt.plot(
-            'DATETIME',
-            dtype,
-            data=fc,
-            label=dtype,
-            alpha=0.8
-        )
+    # plt.plot('DATETIME', dtype,  data=mse_df, label=dtype, alpha=0.8 )
+    x = daily_gt_df.index.values
+    plt.plot(x, daily_pred_df['TOTALDEMAND'], label="pred")
+    plt.plot(x, daily_gt_df['TOTALDEMAND'], label="gt")
     plt.legend()
     plt.grid()
     plt.show()
-    plt.savefig('plot1.png')
+    plt.savefig('compare.png')
     # TODO MSE error evaluation
 
 def predict_n_ahead(model, PROIR_X, n_ahead: int):
@@ -101,5 +110,5 @@ def predict_n_ahead(model, PROIR_X, n_ahead: int):
     return yhat
 
 if __name__ == "__main__":
-    # train()
-    predict()
+    train()
+    evaluate()
