@@ -72,6 +72,9 @@ def evaluate():
     df_mse = convert_to_daily(df_se, test_time_list, df_columns) # mean squred error for daily
     df_rmse = np.sqrt(df_mse) # root mean squred error
     df_plt = df_rmse.plot( y='TOTALDEMAND', kind = 'line', use_index=True, alpha=0.8)
+    plt.xlabel('Day')
+    plt.ylabel('RMSE')
+    plt.title('errors by day')
     df_plt.figure.savefig('rmse.png')
    
     plt.figure(figsize=(12, 8))
