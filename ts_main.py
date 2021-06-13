@@ -38,7 +38,7 @@ def train():
     ts_model.compile(optimizer=tf.keras.optimizers.Adam(), loss=tf.keras.losses.Huber())
     # model_path = os.path.join(conf.model_dir, "tsmodel-{epoch:03d}-{val_loss:03f}.h5")
     model_path = os.path.join(conf.model_dir, "tsmodel.h5") # it's good to overide the existing one
-    cb_checkpoint = tf.keras.callbacks.ModelCheckpoint(model_path, verbose=1, monitor='val_loss',save_best_only=True, mode='auto')
+    cb_checkpoint = tf.keras.callbacks.ModelCheckpoint(model_path, verbose=1, monitor='loss',save_best_only=True, mode='auto') # good way is to monitor val_loss and save the best model
     cb_tensorboad = tf.keras.callbacks.TensorBoard(log_dir=curr_log_dir)
     cb_reduce_lr = tf.keras.callbacks.LearningRateScheduler(lambda x: 1e-3 * 0.90 ** x)
     call_backs = [cb_checkpoint,cb_tensorboad, cb_reduce_lr]
@@ -110,5 +110,5 @@ def predict_n_ahead(model, PROIR_X, n_ahead: int):
     return yhat
 
 if __name__ == "__main__":
-    train()
+    # train()
     evaluate()
